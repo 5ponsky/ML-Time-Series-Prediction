@@ -1,0 +1,932 @@
+// ----------------------------------------------------------------
+// The contents of this file are distributed under the CC0 license.
+// See http://creativecommons.org/publicdomain/zero/1.0/
+// ----------------------------------------------------------------
+import java.util.Random;
+import java.lang.*;
+
+class Main
+{
+	static void test(SupervisedLearner learner, String challenge) {
+		// Load the training data
+		String fn = "data/" + challenge;
+		Matrix trainFeatures = new Matrix();
+		trainFeatures.loadARFF(fn + "_train_feat.arff");
+		Matrix trainLabels = new Matrix();
+		trainLabels.loadARFF(fn + "_train_lab.arff");
+
+		// Train the model
+		//learner.train(trainFeatures, trainLabels, Training.NONE);
+
+		// Load the test data
+		Matrix testFeatures = new Matrix();
+		testFeatures.loadARFF(fn + "_test_feat.arff");
+		Matrix testLabels = new Matrix();
+		testLabels.loadARFF(fn + "_test_lab.arff");
+
+		// Measure and report accuracy
+		int misclassifications = learner.countMisclassifications(testFeatures, testLabels);
+		System.out.println("Misclassifications by " + learner.name() + " at " + challenge + " = " + Integer.toString(misclassifications) + "/" + Integer.toString(testFeatures.rows()));
+	}
+
+	public static void testCV(SupervisedLearner learner) {
+		Matrix f = new Matrix();
+		f.newColumns(1);
+		double[] f1 = {0};
+		double[] f2 = {0};
+		double[] f3 = {0};
+		f.takeRow(f1);
+		f.takeRow(f2);
+		f.takeRow(f3);
+
+		Matrix l = new Matrix();
+		l.newColumns(1);
+		double[] l1 = {2};
+		double[] l2 = {4};
+		double[] l3 = {6};
+		l.takeRow(l1);
+		l.takeRow(l2);
+		l.takeRow(l3);
+
+		double rmse = learner.cross_validation(1, 3, f, l, learner);
+		System.out.println("RMSE: " + rmse);
+	}
+
+	public static void testOLS() {
+		LayerLinear ll = new LayerLinear(13, 1);
+		Random random = new Random(123456);
+		Vec weights = new Vec(14);
+
+		for(int i = 0; i < 14; ++i) {
+			weights.set(i, random.nextGaussian());
+		}
+
+		Matrix x = new Matrix();
+		x.newColumns(13);
+		for(int i = 0; i < 100; ++i) {
+			double[] temp = new double[13];
+			for(int j = 0; j < 13; ++j) {
+				temp[j] = random.nextGaussian();
+			}
+			x.takeRow(temp);
+		}
+
+		Matrix y = new Matrix(100, 1);
+		for(int i = 0; i < y.rows(); ++i) {
+			ll.activate(weights, x.row(i));
+			for(int j = 0; j < ll.activation.size(); ++j) {
+				double temp = ll.activation.get(j) + random.nextGaussian();
+				y.row(i).set(j, temp);
+			}
+		}
+
+		for(int i = 0; i < weights.size(); ++i) {
+    	System.out.println(weights.get(i));
+		}
+
+		Vec olsWeights = new Vec(14);
+		ll.ordinary_least_squares(x,y,olsWeights);
+
+		System.out.println("-----------------------------");
+
+		for(int i = 0; i < olsWeights.size(); ++i) {
+			System.out.println(olsWeights.get(i));
+		}
+	}
+
+
+	public static void testLayer() {
+		double[] x = {0, 1, 2};
+		double[] m = {1, 5, 1, 2, 3, 2, 1, 0};
+		LayerLinear ll = new LayerLinear(3, 2);
+		ll.activate(new Vec(m), new Vec(x));
+		System.out.println(ll.activation.toString());
+	}
+
+
+	public static void opticalCharacterRecognition() {
+		Random random = new Random(123456); // used for shuffling data
+
+
+		/// Load training and testing data
+		Matrix trainFeatures = new Matrix();
+		trainFeatures.loadARFF("data/train_feat.arff");
+		Matrix trainLabels = new Matrix();
+		trainLabels.loadARFF("data/train_lab.arff");
+
+		Matrix testFeatures = new Matrix();
+		testFeatures.loadARFF("data/test_feat.arff");
+		Matrix testLabels = new Matrix();
+		testLabels.loadARFF("data/test_lab.arff");
+
+		/// Normalize our training/testing data by dividing by 256.0
+		/// There are 256 possible values for any given entry
+		trainFeatures.scale((1 / 256.0));
+		testFeatures.scale((1 / 256.0));
+
+		/// Build index arrays to shuffle training and testing data
+		int[] trainingIndices = new int[trainFeatures.rows()];
+		int[] testIndices = new int[testFeatures.rows()];
+
+		// populate the index arrays with indices
+		for(int i = 0; i < trainingIndices.length; ++i) { trainingIndices[i] = i; }
+		for(int i = 0; i < testIndices.length; ++i) { testIndices[i] = i; }
+
+		/// Assemble and initialize a neural net
+		NeuralNet nn = new NeuralNet(random);
+
+		nn.layers.add(new LayerLinear(784, 80));
+		nn.layers.add(new LayerTanh(80));
+
+		nn.layers.add(new LayerLinear(80, 30));
+		nn.layers.add(new LayerTanh(30));
+
+		nn.layers.add(new LayerLinear(30, 10));
+		nn.layers.add(new LayerTanh(10));
+
+		nn.initWeights();
+
+
+		/// Training and testing
+		int mis = 10000;
+		int epoch = 0;
+		while(mis > 350) {
+			//if(true)break;
+			System.out.println("==============================");
+			System.out.println("TRAINING EPOCH #" + epoch + '\n');
+
+			mis = nn.countMisclassifications(testFeatures, testLabels);
+			System.out.println("Misclassifications: " + mis);
+
+			for(int i = 0; i < trainFeatures.rows(); ++i) {
+				Vec in, target;
+
+				// Train the network on a single input
+				in = trainFeatures.row(i);
+
+				target = new Vec(10);
+				target.vals[(int) trainLabels.row(i).get(0)] = 1;
+
+				//nn.refineWeights(in, target, nn.weights, 0.0175, Training.STOCHASTIC);
+			}
+
+			// Shuffle training and testing indices
+			for(int i = 0; i < trainingIndices.length * 0.5; ++i) {
+				int randomIndex = random.nextInt(trainingIndices.length);
+				int temp = trainingIndices[i];
+				trainingIndices[i] = trainingIndices[randomIndex];
+				trainingIndices[randomIndex] = temp;
+
+			}
+
+			for(int i = 0; i < testIndices.length * 0.5; ++i) {
+				int randomIndex = random.nextInt(testIndices.length);
+				int temp = testIndices[i];
+				testIndices[i] = testIndices[randomIndex];
+				testIndices[randomIndex] = temp;
+			}
+
+			++epoch;
+		}
+	}
+
+	public static void testBackProp() {
+		double[] x = {0, 1, 2};
+		Vec xx = new Vec(x);
+		double[] m = {1, 5, 1, 2, 3, 2, 1, 0};
+		double[] yhat = {9, 6};
+		LayerLinear ll = new LayerLinear(3, 2);
+		ll.activate(new Vec(m), new Vec(x));
+		ll.blame = new Vec(yhat);
+		ll.backProp(new Vec(m), new Vec(x));
+		System.out.println(xx);
+	}
+
+	public static void testGradient() {
+		double[] x = {0, 1, 2};
+		Vec xx = new Vec(x);
+		double[] m = {1, 5, 1, 2, 3, 2, 1, 0};
+		Vec mm = new Vec(m);
+		Vec g = new Vec(mm.size());
+		g.fill(0.0);
+		double[] yhat = {9, 6};
+		LayerLinear ll = new LayerLinear(3, 2);
+		ll.activate(new Vec(m), new Vec(x));
+		ll.blame = new Vec(yhat);
+		ll.updateGradient(xx, g);
+		//System.out.println(xx);
+		System.out.println(g);
+	}
+
+	public static void testNomCat() {
+		Random random = new Random(123456);
+
+		/// Load data
+		Matrix data = new Matrix();
+		data.loadARFF("data/hypothyroid.arff");
+
+		// Matrix data = new Matrix(5, derp.cols());
+		// data.copyBlock(0, 0, derp, 0, 0, 5, data.cols());
+
+		/// Create a new filter to preprocess our data
+		Filter f = new Filter(random);
+
+		/// Partition the features from the labels
+		Matrix features = new Matrix();
+		Matrix labels = new Matrix();
+		f.splitLabels(data, features, labels);
+
+		/// PREPROCESSING
+		// We need a set of preprocessors for both features and labels
+
+		// Train the preprocessors for the training data
+		f.train(features, labels, null, 0, 0.0);
+
+		/// Partition the data into training and testing blocks
+		/// With respective feature and labels blocks
+		double splitRatio = 0.75;
+		Matrix trainingFeatures = new Matrix();
+		Matrix trainingLabels = new Matrix();
+		Matrix testingFeatures = new Matrix();
+		Matrix testingLabels = new Matrix();
+		f.splitData(features, labels, trainingFeatures, trainingLabels,
+			testingFeatures, testingLabels, 5, 0);
+
+
+		/// Build index arrays to shuffle training and testing data
+		int[] trainingIndices = new int[trainingFeatures.rows()];
+		int[] testIndices = new int[testingFeatures.rows()];
+
+		// populate the index arrays with indices
+		for(int i = 0; i < trainingIndices.length; ++i) { trainingIndices[i] = i; }
+		for(int i = 0; i < testIndices.length; ++i) { testIndices[i] = i; }
+
+
+		/// I want some intelligent way of getting the input and outputs
+		f.nn.layers.add(new LayerLinear(trainingFeatures.cols(), 100));
+		f.nn.layers.add(new LayerTanh(100));
+
+		f.nn.layers.add(new LayerLinear(100, 4));
+		f.nn.layers.add(new LayerTanh(4));
+
+		f.nn.initWeights();
+
+		int mis = testingLabels.rows();
+		int epoch = 0;
+
+		double testSSE = 0;
+		double trainSSE = 0;
+
+		double previous = 0;
+		double tolerance = 0.0000009;
+
+
+		System.out.println("batch,seconds,testRMSE,trainRMSE");
+		int batch = 1;
+		int batch_size = 10;
+		double startTime = (double)System.nanoTime();
+		while(true) {
+
+			testSSE += f.sum_squared_error(testingFeatures, testingLabels);
+			double testMSE = testSSE / testingFeatures.rows();
+			double testRMSE = Math.sqrt(testMSE);
+
+			trainSSE += f.sum_squared_error(trainingFeatures, trainingLabels);
+			double trainMSE = trainSSE / trainingFeatures.rows();
+			double trainRMSE = Math.sqrt(trainMSE);
+
+			f.trainNeuralNet(trainingFeatures, trainingLabels, trainingIndices, batch_size, 0.0);
+			// double mse = sse / batch;
+			// double rmse = Math.sqrt(mse);
+
+			double seconds = ((double)System.nanoTime() - startTime) / 1e9;
+			System.out.println(batch + "," + seconds + "," + testRMSE + "," + trainRMSE);
+
+			batch = batch + 1;
+
+			// mis = f.countMisclassifications(testingFeatures, testingLabels);
+			// System.out.println("mis: " + mis);
+
+			double convergence = Math.abs(1 - (previous / testSSE));
+			previous = testSSE;
+			testSSE = 0;
+			trainSSE = 0;
+			if(convergence < tolerance) break;
+
+		}
+
+	}
+
+	public static void testData() {
+		Random r = new Random(123456);
+
+		NeuralNet nn = new NeuralNet(r);
+		nn.layers.add(new LayerLinear(1, 2));
+		//nn.layers.add(new LayerLeakyRectifier(2));
+		nn.layers.add(new LayerLinear(2, 1));
+
+		//nn.initWeights();
+
+		double[] w = {0.1, 0.2, 0.3, 0.4, 0.1, 0.2, 0.3};
+		nn.weights = new Vec(w);
+		nn.gradient = new Vec(nn.weights.size());
+		nn.gradient.fill(0.0);
+
+		double[] x = {0.3};
+		// Matrix f = new Matrix(0, 1);
+		// f.takeRow(x);
+		//
+		double[] t = {0.7};
+		// Matrix l = new Matrix(0, 1);
+		// l.takeRow(t);
+
+		Vec in = new Vec(x);
+		Vec target = new Vec(t);
+
+		nn.predict(in);
+		nn.backProp(target);
+		nn.updateGradient(in);
+
+		// create gradient for estimation
+		nn.cd_gradient = new Vec(nn.gradient.size());
+
+		// Calculate cd gradient
+		nn.central_difference(in, target);
+
+		System.out.println("Computed: " + nn.gradient);
+		System.out.println("Central diff: " + nn.cd_gradient);
+
+		int count = 0;
+		for(int i = 0; i < nn.gradient.size(); ++i) {
+			double difference = (nn.cd_gradient.get(i) - nn.gradient.get(i)) / nn.cd_gradient.get(i);
+			if(difference > 0.005)
+				++count;
+		}
+
+		System.out.println("Difference exceeds tolerance " + count
+			+ " times out of " + nn.gradient.size() + " elements");
+
+	}
+
+	public static void testConv() {
+		int[] in = {4,4};
+		int[] fi = {3,3,2};
+		int[] ou = {4,4,2};
+		LayerConv lc = new LayerConv(in, fi, ou);
+
+		Vec inp = new Vec(4*4);
+		Vec fil = new Vec(3*3*2);
+		Vec out = new Vec(4*4*2);
+
+		Tensor input = new Tensor(inp, in);
+		Tensor filter = new Tensor(fil, fi);
+		Tensor output = new Tensor(out, ou);
+
+		Tensor.convolve(input, filter, output, false, 1);
+
+	}
+
+	public static void debugSpew() {
+		Random r = new Random(123456);
+		NeuralNet nn = new NeuralNet(r);
+		nn.layers.add(new LayerConv(new int[]{4, 4}, new int[]{3, 3, 2},
+			new int[]{4, 4, 2}));
+		nn.layers.add(new LayerLeakyRectifier(4 * 4 * 2));
+		nn.layers.add(new LayerMaxPooling2D(4, 4, 2));
+
+		double[] w = {
+			0,							// bias #1
+			0.1,						// bias #2
+
+			0.01,0.02,0.03, // filter #1
+			0.04,0.05,0.06,
+			0.07,0.08,0.09,
+
+			0.11,0.12,0.13, // filter #2
+			0.14,0.15,0.16,
+			0.17,0.18,0.19
+		};
+		nn.weights = new Vec(w);
+		nn.gradient = new Vec(nn.weights.size());
+		nn.gradient.fill(0.0);
+
+		double[] in = {
+			0,0.1,0.2,0.3,
+			0.4,0.5,0.6,0.7,
+			0.8,0.9,1,1.1,
+			1.2,1.3,1.4,1.5
+		};
+		Vec input = new Vec(in);
+
+		double[] t = {
+			0.7,0.6,
+			0.5,0.4,
+
+			0.3,0.2,
+			0.1,0
+		};
+		Vec target = new Vec(t);
+
+		// Forward Prop
+		nn.predict(input);
+		System.out.println("activation 0:\n" + nn.layers.get(0).activation);
+		nn.predict(input);
+		System.out.println("activation 0:\n" + nn.layers.get(0).activation);
+		// System.out.println("activation 1:\n" + nn.layers.get(1).activation);
+		// System.out.println("activation 2:\n" + nn.layers.get(2).activation);
+		//
+		// // error
+		// System.out.println("output Blame: ");
+		// for(int i = 0; i < target.size(); ++i) {
+		// 	System.out.print((target.get(i) - nn.layers.get(2).activation.get(i)) + ",");
+		// }
+		// System.out.println("");
+		//
+		// // backProp
+		// nn.backProp(target);
+		// System.out.println("blame 2: " + nn.layers.get(2).blame);
+		// System.out.println("blame 1: " + nn.layers.get(1).blame);
+		// System.out.println("blame 0: " + nn.layers.get(0).blame);
+		//
+		// nn.updateGradient(input);
+		// System.out.println("gradient: " + nn.gradient);
+		//
+		// nn.cd_gradient = new Vec(nn.gradient.size());
+		// nn.central_difference(input, target);
+		// System.out.println("cd: " + nn.cd_gradient);
+		//
+		// int count = 0;
+		// for(int i = 0; i < nn.gradient.size(); ++i) {
+		// 	double difference = (nn.cd_gradient.get(i) - nn.gradient.get(i)) / nn.cd_gradient.get(i);
+		// 	if(difference > 0.005)
+		// 		++count;
+		// }
+		//
+		// System.out.println("Difference exceeds tolerance " + count
+		// 	+ " times out of " + nn.gradient.size() + " elements");
+
+	}
+
+	public static void debugSpew2() {
+		Random r = new Random(123456);
+		NeuralNet nn = new NeuralNet(r);
+
+		nn.layers.add(new LayerConv(new int[]{4, 4}, new int[]{3, 3},
+			new int[]{4, 4}));
+		nn.layers.add(new LayerConv(new int[]{4, 4}, new int[]{3, 3, 2},
+			new int[]{4, 4, 2}));
+		nn.layers.add(new LayerLeakyRectifier(4 * 4 * 2));
+		nn.layers.add(new LayerMaxPooling2D(4, 4, 2));
+
+		double[] w = {
+			0,							// bias #1
+
+			0.01,0.02,0.03, // filter #1
+			0.04,0.05,0.06,
+			0.07,0.08,0.09,
+
+			0.1,						// bias #2
+			0.20,						// bias #3
+
+			0.11,0.12,0.13, // filter #2
+			0.14,0.15,0.16,
+			0.17,0.18,0.19,
+
+			0.21,0.22,0.23, // filter #3
+			0.24,0.25,0.26,
+			0.27,0.28,0.29
+		};
+		nn.weights = new Vec(w);
+		nn.gradient = new Vec(nn.weights.size());
+		nn.gradient.fill(0.0);
+
+		double[] in = {
+			0,0.1,0.2,0.3,
+			0.4,0.5,0.6,0.7,
+			0.8,0.9,1,1.1,
+			1.2,1.3,1.4,1.5
+		};
+		Vec input = new Vec(in);
+
+		double[] t = {
+			0.7,0.6,
+			0.5,0.4,
+
+			0.3,0.2,
+			0.1,0
+		};
+		Vec target = new Vec(t);
+
+		nn.predict(input);
+		System.out.println("activation 0:\n" + nn.layers.get(0).activation);
+		System.out.println("activation 1:\n" + nn.layers.get(1).activation);
+		System.out.println("activation 2:\n" + nn.layers.get(2).activation);
+		System.out.println("activation 3:\n" + nn.layers.get(3).activation);
+
+		// error
+		System.out.println("output Blame: ");
+		for(int i = 0; i < target.size(); ++i) {
+			System.out.print((target.get(i) - nn.layers.get(3).activation.get(i)) + ",");
+		}
+		System.out.println("");
+
+		// backProp
+		nn.backProp(target);
+		System.out.println("blame 2: " + nn.layers.get(2).blame);
+		System.out.println("blame 1: " + nn.layers.get(1).blame);
+		System.out.println("blame 0: " + nn.layers.get(0).blame);
+
+		nn.updateGradient(input);
+		System.out.println("gradient: " + nn.gradient);
+
+		nn.refineWeights(0.01);
+		System.out.println("weights: " + nn.weights);
+
+		//Vec cd = nn.centralDifference(input);
+		//System.out.println("cd: " + cd);
+	}
+
+	public static void asgn4() {
+		/// Instantiate net
+		Random r = new Random(123456);
+		NeuralNet nn = new NeuralNet(r);
+
+		/// Build topology
+		nn.layers.add(new LayerConv(new int[]{8, 8}, new int[]{5, 5, 4}, new int[]{8, 8, 4}));
+		nn.layers.add(new LayerLeakyRectifier(8 * 8 * 4));
+		nn.layers.add(new LayerMaxPooling2D(8, 8, 4));
+		nn.layers.add(new LayerConv(new int[]{4, 4, 4}, new int[]{3, 3, 4, 6}, new int[]{4, 4, 1, 6}));
+		nn.layers.add(new LayerLeakyRectifier(4 * 4 * 6));
+		nn.layers.add(new LayerMaxPooling2D(4, 4, 1 * 6));
+		nn.layers.add(new LayerLinear(2 * 2 * 6, 3));
+		nn.initWeights();
+
+		/// Test data
+		int inSize = nn.layers.get(0).inputs;
+		Vec in = new Vec(inSize);
+		for(int i = 0; i < in.size(); ++i) {
+			in.set(i, i / 100.0);
+		}
+
+		int size = nn.layers.size();
+		int outSize = nn.layers.get(size-1).outputs;
+		Vec target = new Vec(outSize);
+		for(int i = 0; i < target.size(); ++i) {
+			target.set(i, i / 10.0);
+		}
+
+		nn.finite_difference(in, target);
+
+		// create gradient for estimation
+		// nn.cd_gradient = new Vec(nn.gradient.size());
+		//
+		// Calculate nn grad
+
+		// for(int i = 0; i < 50; ++i) {
+		// 	System.out.println("prediction: " + nn.predict(in));
+		//
+		// 	nn.backProp(target);
+		// 	nn.updateGradient(in);
+		//
+		// 	System.out.println("nn.gradient: " + nn.gradient);
+		//
+		// 	nn.refineWeights(0.2);
+		// 	nn.gradient.fill(0.0);
+		// 	System.out.println("weights after refine: " + nn.weights);
+		// }
+
+
+		//
+		// // Calculate cd gradient
+		// nn.central_difference(in, target);
+		//
+		// System.out.println("Computed: " + nn.gradient);
+		// System.out.println("Central diff: " + nn.cd_gradient);
+		//
+		// double tolerance = 0.005;
+		// int count = 0;
+		// for(int i = 0; i < nn.gradient.size(); ++i) {
+		// 	double difference = (nn.cd_gradient.get(i) - nn.gradient.get(i)) / nn.cd_gradient.get(i);
+		// 	if(difference > tolerance)
+		// 		++count;
+		// }
+		//
+		// System.out.println("Difference exceeds tolerance (" + tolerance +  ") " + count
+		// 	+ " times out of " + nn.gradient.size() + " elements");
+		// System.out.println("--------------------------------");
+
+	}
+
+	public static void db() {
+		/// Instantiate net
+		Random r = new Random(123456);
+		NeuralNet nn = new NeuralNet(r);
+
+		/// Build topology
+		nn.layers.add(new LayerConv(new int[]{8, 8}, new int[]{5, 5, 4}, new int[]{8, 8, 4}));
+		nn.layers.add(new LayerLeakyRectifier(8 * 8 * 4));
+		nn.layers.add(new LayerMaxPooling2D(8, 8, 4));
+		nn.layers.add(new LayerConv(new int[]{4, 4, 4}, new int[]{3, 3, 4, 6}, new int[]{4, 4, 1, 6}));
+		nn.layers.add(new LayerLeakyRectifier(4 * 4 * 6));
+		nn.layers.add(new LayerMaxPooling2D(4, 4, 1 * 6));
+		nn.layers.add(new LayerLinear(2 * 2 * 6, 3));
+		nn.initWeights();
+
+		/// Test data
+		Vec in = new Vec(64);
+		for(int i = 0; i < in.size(); ++i) {
+			in.set(i, i / 10);
+		}
+
+		Vec target = new Vec(64);
+		for(int i = 0; i < target.size(); ++i) {
+			target.set(i, i/10);
+		}
+
+		// Calculate nn grad
+		nn.predict(in);
+		nn.backProp(target);
+		nn.updateGradient(in);
+
+		System.out.println("Computed: " + nn.gradient);
+	}
+
+	public static void tc() {
+		int[] a_dims = {4,4,4};
+		int[] b_dims = {3,3,4,6};
+		int[] c_dims = {4,4,1,6};
+
+		Vec a = new Vec(4*4*4);
+		Vec b = new Vec(3*3*4*6);
+		Vec c = new Vec(4*4*1*6);
+
+		for(int i = 0; i < a.size(); ++i) {
+			a.set(i, i);
+		}
+
+		for(int i = 0; i < b.size(); ++i) {
+			b.set(i, i);
+		}
+
+		for(int i = 0; i < c.size(); ++i) {
+			c.set(i, i);
+		}
+
+		Tensor a_t = new Tensor(a, a_dims);
+		Tensor b_t = new Tensor(b, b_dims);
+		Tensor c_t = new Tensor(c, c_dims);
+
+		Tensor.safety_convolve(a_t, b_t, c_t, -1);
+
+		System.out.println(c_t);
+	}
+
+	public static void maxpool() {
+		Layer l = new LayerMaxPooling2D(8, 8, 4);
+		Vec in = new Vec(l.inputs);
+
+		for(int i = 0; i < in.size(); ++i) {
+			in.set(i, i);
+		}
+
+		l.activate(null, in);
+		System.out.println(l.activation);
+	}
+
+	public static void testCD() {
+		Random r = new Random(123456);
+		NeuralNet nn = new NeuralNet(r);
+		nn.layers.add(new LayerLinear(3, 1));
+		nn.layers.add(new LayerLeakyRectifier(1));
+		nn.initWeights();
+
+		double[] x = {0.2, 0.3, 0.4};
+		double[] t = {0.1};
+
+		Vec in = new Vec(x);
+		Vec target = new Vec(t);
+
+		// create gradient for estimation
+		nn.cd_gradient = new Vec(nn.gradient);
+
+		nn.predict(in);
+		nn.backProp(target);
+		nn.updateGradient(in);
+
+		// Calculate cd gradient
+		nn.central_difference(in, target);
+
+		System.out.println("Computed: " + nn.gradient);
+		System.out.println("Central diff: " + nn.cd_gradient);
+
+		int count = 0;
+		for(int i = 0; i < nn.gradient.size(); ++i) {
+			double difference = (nn.cd_gradient.get(i) - nn.gradient.get(i)) / nn.cd_gradient.get(i);
+			if(difference > 0.005)
+				++count;
+		}
+
+		System.out.println("Difference exceeds tolerance " + count
+			+ " times out of " + nn.gradient.size() + " elements");
+	}
+
+	public static void debuug() {
+		Random r = new Random(123456);
+		NeuralNet nn = new NeuralNet(r);
+		nn.layers.add(new LayerConv(new int[]{4, 4}, new int[]{3, 3, 1}, new int[]{4, 4, 1}));
+		nn.layers.add(new LayerConv(new int[]{4, 4}, new int[]{3, 3, 2}, new int[]{4, 4, 2}));
+		nn.layers.add(new LayerLeakyRectifier(4*4*2));
+		nn.layers.add(new LayerMaxPooling2D(4,4,2));
+		nn.initWeights();
+
+		Vec in = new Vec(16);
+		for(int i = 0; i < in.size(); ++i) {
+			in.set(i, i/10.0);
+		}
+
+		Vec target = new Vec(8);
+		for(int i = target.size() -1, j = 0; j < target.size(); --i, ++j) {
+			target.set(j, i/10.0);
+		}
+
+		System.out.println("target: " + target);
+		System.out.println("init weights: " + nn.weights);
+
+		nn.cd_gradient = new Vec(nn.gradient);
+
+		nn.predict(in);
+		nn.backProp(target);
+		nn.updateGradient(in);
+
+		System.out.println("afterBackprop: " + nn.weights);
+		nn.central_difference(in, target);
+		System.out.println("after cd: " + nn.weights);
+
+		int count = 0;
+		for(int i = 0; i < nn.gradient.size(); ++i) {
+			double difference = (nn.cd_gradient.get(i) - nn.gradient.get(i)) / nn.cd_gradient.get(i);
+			if(difference > 0.005)
+				++count;
+		}
+
+		System.out.println("Difference exceeds tolerance " + count
+			+ " times out of " + nn.gradient.size() + " elements");
+
+	}
+
+	public static void timeseries() {
+		Random r = new Random(123456);
+		NeuralNet nn = new NeuralNet(r);
+
+		nn.layers.add(new LayerLinear(1, 101));
+		nn.layers.add(new LayerTanh(101));
+		nn.layers.add(new LayerLinear(101, 1));
+		nn.initWeights();
+
+		/// Initilizize first layer weights
+		int numWeights = nn.layers.get(0).getNumberWeights();
+		// Strip the weights
+		Vec layerOne = new Vec(nn.weights, 0, numWeights); // Strip the weights
+		// Separate the bias and populate it
+		Vec bias = new Vec(layerOne, 0, nn.layers.get(0).outputs);
+		for(int i = 0; i < bias.size(); ++i) {
+			if(i < 50)
+				bias.set(i, Math.PI);
+			else
+				bias.set(i, Math.PI / 2);
+		}
+
+		// Separate M and populate import junit.framework.TestCase;
+		Vec m = new Vec(layerOne, bias.size(), layerOne.size()-bias.size());
+		for(int i = 0; i < m.size() - 1; ++i) {
+			if(i < 50)
+				m.set(i, (i+1) * 2 * Math.PI);
+			else
+				m.set(i, (i+1) * 2 * Math.PI);
+		}
+		m.set(m.size()-1, 0.01);
+
+		/// Build the features matrix
+		Matrix features = new Matrix(255, 1);
+		for(int i = 0; i < features.rows(); ++i) {
+			features.row(i).set(0, i / 256);
+		}
+
+	}
+
+	public static void debugTest() {
+		Random r = new Random(123456);
+		NeuralNet nn = new NeuralNet(r);
+		nn.layers.add(new LayerConv(new int[]{4, 4}, new int[]{3, 3, 2},
+			new int[]{4, 4, 2}));
+		nn.layers.add(new LayerLeakyRectifier(4 * 4 * 2));
+		nn.layers.add(new LayerMaxPooling2D(4, 4, 2));
+		// nn.layers.add(new LayerLinear(16, 8));
+		// nn.layers.add(new LayerTanh(8));
+		nn.initWeights();
+
+
+		Vec input = new Vec(16);
+		Vec target = new Vec(8);
+
+		for(int i = 0; i < input.size(); ++i) {
+			input.set(i, r.nextGaussian() / input.size());
+		}
+
+		for(int i = 0; i < target.size(); ++i) {
+			target.set(i, r.nextGaussian() / target.size());
+		}
+
+		// Forward Prop
+		nn.predict(input);
+		System.out.println("activation 0:\n" + nn.layers.get(0).activation);
+		//
+		// // error
+		// System.out.println("output Blame: ");
+		// for(int i = 0; i < target.size(); ++i) {
+		// 	System.out.print((target.get(i) - nn.layers.get(2).activation.get(i)) + ",");
+		// }
+		// System.out.println("");
+		//
+		// // backProp
+		// nn.backProp(target);
+		// System.out.println("blame 2: " + nn.layers.get(2).blame);
+		// System.out.println("blame 1: " + nn.layers.get(1).blame);
+		// System.out.println("blame 0: " + nn.layers.get(0).blame);
+		//
+		// nn.updateGradient(input);
+		// System.out.println("gradient: " + nn.gradient);
+	}
+
+	public static void testCDF() {
+		Random r = new Random(123456);
+		NeuralNet nn = new NeuralNet(r);
+		nn.layers.add(new LayerLinear(1, 3));
+		nn.layers.add(new LayerTanh(3));
+		nn.layers.add(new LayerLinear(3, 2));
+		nn.initWeights();
+		//nn.weights.set(1, 3);
+		//nn.weights.set(0, 0);
+		System.out.println("weights; " + nn.weights);
+
+		//nn.weights.set(0, 0);
+		//nn.weights.set(1, 1);
+
+
+		Vec in = new Vec(nn.layers.get(0).inputs);
+		for(int i = 0; i < in.size(); ++i) {
+			in.set(i, i /10.0);
+		}
+
+		int size = nn.layers.size();
+		int outSize = nn.layers.get(size-1).outputs;
+		Vec target = new Vec(outSize);
+		for(int i = 0; i < target.size(); ++i) {
+			target.set(i, 10);
+		}
+
+		nn.finite_difference(in, target);
+
+		// System.out.println("prediction: " + nn.predict(in));
+		// nn.backProp(target);
+		// nn.updateGradient(in);
+		//
+		// System.out.println("nn.gradient: " + nn.gradient);
+
+
+		// System.out.println("in: " + in);
+		// System.out.println("target: " + target);
+		//
+		// for(int i = 0; i < 10; ++i) {
+		// 	System.out.println("prediction: " + nn.predict(in));
+		//
+		// 	nn.backProp(target);
+		// 	nn.updateGradient(in);
+		//
+		// 	System.out.println("nn.gradient: " + nn.gradient);
+		//
+		// 	nn.refineWeights(0.2);
+		// 	nn.gradient.fill(0.0);
+		// 	System.out.println("weights after refine: " + nn.weights);
+		// }
+
+	}
+
+	public static void main(String[] args)
+	{
+		//tc();
+		//testCDF();
+		//timeseries();
+		//maxpool();
+		//tc();
+		//db();
+		//debugSpew();
+	  //debugSpew2();
+		asgn4();
+		//testData();
+		//testCDF();
+
+		//debugTest();
+
+	}
+}
