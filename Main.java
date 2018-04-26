@@ -563,6 +563,7 @@ class Main
 
 	}
 
+
 	public static void tsDebugSimple() {
 		/// Instantiate net
 		Random r = new Random(123456);
@@ -577,8 +578,9 @@ class Main
 
 	}
 
-	public static void main(String[] args)
-	{
+	public static void main(String[] args) {
+
+		/// NOTE: l1 regularization pushes non-critical weights to 0.
 		timeseries();
 
 	}
