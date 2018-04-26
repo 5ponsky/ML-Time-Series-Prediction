@@ -563,6 +563,20 @@ class Main
 
 	}
 
+	public static void tsDebugSimple() {
+		/// Instantiate net
+		Random r = new Random(123456);
+		NeuralNet nn = new NeuralNet(r);
+
+		/// Build topology
+		nn.layers.add(new LayerLinear(1, 5));
+		nn.layers.add(new LayerTanh(5));
+		nn.layers.add(new LayerLinear(5, 1));
+		nn.initWeights();
+
+
+	}
+
 	public static void main(String[] args)
 	{
 		timeseries();
