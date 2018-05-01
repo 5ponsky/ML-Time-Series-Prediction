@@ -6,6 +6,8 @@ public class NeuralNet extends SupervisedLearner {
   // It allows for decreasing learning rates
   private double learning_scale = 1.0;
   private double learning_rate = 0.0175;
+  private double lambda_1 = 0.0001;
+  private double lambda_2 = 0.001;
 
   protected int trainingProgress;
 
@@ -117,6 +119,9 @@ public class NeuralNet extends SupervisedLearner {
     // How many patterns/mini-batches should we train on before testing?
     final int cutoff = features.rows();
 
+    // temporary place holder for regularization
+    int reg_mode = 2;
+
     Vec in, target;
     // We want to check if we have iterated over all rows
     for(; trainingProgress < features.rows(); ++trainingProgress) {
@@ -128,7 +133,17 @@ public class NeuralNet extends SupervisedLearner {
       updateGradient(in);
 
       if((trainingProgress + 1) % batch_size == 0) {
+
+        // If we have some form of weight regularization
+        if(reg_mode == 1) { // L1 regularization
+          l1_regularization();
+        } else if(reg_mode == 2) { // L2 regularization
+          l2_regularization();
+        } else if(reg_mode == 3) { // LP regularization
+
+        }
         refineWeights(learning_rate * learning_scale);
+
         if(momentum <= 0)
           gradient.fill(0.0);
         else
@@ -155,43 +170,49 @@ public class NeuralNet extends SupervisedLearner {
     }
   }
 
-  /// Used for estimating the gradient
-  Vec central_difference(Vec x, Vec target) {
-    double h = 0.0001;
-
-    Vec validation = new Vec(weights); // Used for validating the weights
-
+  /// L1 regularization
+  void l1_regularization() {
     for(int i = 0; i < weights.size(); ++i) {
       double weight = weights.get(i);
 
-      // right side
-      weights.set(i, weight + h);
-      Vec right = new Vec(predict(x));
-      double r_res = 0.0;
-      for(int j = 0; j < right.size(); ++j) {
-        r_res += (target.get(j) - right.get(j)) * (target.get(j) - right.get(j));
-      }
-
-      // left side
-      weights.set(i, weight - h);
-      Vec left = new Vec(predict(x));
-      double l_res = 0.0;
-      for(int j = 0; j < left.size(); ++j) {
-        l_res += (target.get(j) - left.get(j)) * (target.get(j) - left.get(j));
-      }
-
-      double res = (l_res - r_res) / (2 * h);
-      cd_gradient.set(i, res);
-
-      weights.set(i, weight);
-
-      // Validate that the weights have returned to their original values
-      for(int j = 0; j < weights.size(); ++j) {
-        if(weights.get(j) != validation.get(j))
-          throw new RuntimeException("Error resolving weights!");
+      if(weight > 0.0) {
+        weights.set(i, weight - (weight * lambda_1 * learning_rate));
+      } else if(weight < 0.0) {
+        weights.set(i, weight + (weight * lambda_1 * learning_rate));
       }
     }
-    return cd_gradient;
+  }
+
+  void l2_regularization() {
+    for(int i = 0; i < weights.size(); ++i) {
+      double weight = weights.get(i);
+
+      if(weight > 0.0) {
+        weights.set(i, weight - (weight * weight * lambda_1 * learning_rate));
+      } else if(weight < 0.0) {
+        weights.set(i, weight + (weight * weight * lambda_1 * learning_rate));
+      }
+    }
+  }
+
+  void lp_regularization(int p) {
+    int power = p - 1;
+
+    for(int i = 0; i < weights.size(); ++i) {
+      double weight = weights.get(i);
+      double res = 1;
+
+      // raise a weight to a p-1 power
+      for(int j = 0; j < power; ++j) {
+        res *= weight;
+      }
+
+      if(weight > 0.0) {
+        weights.set(i, weight - (res * lambda_1 * learning_rate));
+      } else if(weight < 0.0) {
+        weights.set(i, weight + (res * lambda_1 * learning_rate));
+      }
+    }
   }
 
   void finite_difference(Vec x, Vec target) {

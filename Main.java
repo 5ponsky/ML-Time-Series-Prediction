@@ -516,7 +516,7 @@ class Main
 
 		/// Build topology
 		nn.layers.add(new LayerLinear(1, 101));
-		nn.layers.add(new LayerTanh(101));
+		nn.layers.add(new LayerSine(101));
 		nn.layers.add(new LayerLinear(101, 1));
 		nn.initWeights();
 
@@ -543,24 +543,57 @@ class Main
 		}
 		m.set(m.size()-1, 0.01);
 
-		/// Build the features matrix
-		Matrix features = new Matrix(256, 1);
-		for(int i = 0; i < features.rows(); ++i) {
-			features.row(i).set(0, i / 256.0);
+		/// Build the training features matrix
+		Matrix trainingFeatures = new Matrix(256, 1);
+		for(int i = 0; i < trainingFeatures.rows(); ++i) {
+			trainingFeatures.row(i).set(0, i / 256.0);
 		}
 
-		/// Load data from file
+		/// Build the testing features matrix
+		Matrix testingFeatures = new Matrix(100, 1);
+		for(int i = 0; i < testingFeatures.rows(); ++i) {
+			// testingFeatures.row(i).set(0, (256.0 + i) / 256.0);
+			testingFeatures.row(i).set(0, (i) / 256.0);
+		}
+
+		/// Load label data from file
 		Matrix data = new Matrix();
-		data.loadARFF("data/train_feat.arff");
+		data.loadARFF("data/unemployment.arff");
 
-		/// Cut into labels matrix
-		Matrix labels = new Matrix(256, 1);
-		for(int i = 0; i < labels.rows(); ++i) {
+		/// split into training labels matrix
+		Matrix trainingLabels = new Matrix(256, 1);
+		for(int i = 0; i < trainingLabels.rows(); ++i) {
 			double val = data.row(i).get(0);
-			labels.row(i).set(0, val);
+			trainingLabels.row(i).set(0, val);
 		}
 
+		/// Split into testing labels matrix
+		Matrix testingLabels = new Matrix (100, 1);
+		for(int i = 0; i < testingLabels.rows(); ++i) {
+			double val = data.row(256 + i).get(0);
+			testingLabels.row(i).set(0, val);
+		}
 
+		/// Build index arrays to shuffle training and testing data
+		int[] trainingIndices = new int[trainingFeatures.rows()];
+		// populate the index arrays with indices
+		for(int i = 0; i < trainingIndices.length; ++i) { trainingIndices[i] = i; }
+
+		/// Train the net
+		for(int i = 0; i < 10; ++i) {
+			nn.train(trainingFeatures, trainingLabels, trainingIndices, 1, 0.0);
+		}
+
+		/// produce a matrix of the predicted results
+		Vec predictions = new Vec(testingFeatures.rows());
+		for(int i = 0; i < testingFeatures.rows(); ++i) {
+			Vec pred = new Vec(nn.predict(testingFeatures.row(i)));
+			predictions.set(i, pred.get(0));
+		}
+
+		for(int i = 0; i < predictions.size(); ++i) {
+			System.out.println(predictions.get(i));
+		}
 	}
 
 
@@ -571,17 +604,38 @@ class Main
 
 		/// Build topology
 		nn.layers.add(new LayerLinear(1, 5));
-		nn.layers.add(new LayerTanh(5));
+		nn.layers.add(new LayerSine(5));
 		nn.layers.add(new LayerLinear(5, 1));
-		nn.initWeights();
 
+		double[] w = {
+			3.1415926535898,3.1415926535898,1.5707963267949,1.5707963267949,
+			0,6.2831853071796,12.566370614359,6.2831853071796,12.566370614359,0,
+			0.01,0.01,0.01,0.01,0.01,0.01
+		};
+		nn.weights = new Vec(w);
+		nn.gradient = new Vec(nn.weights.size());
 
+		double[] in = {0};
+		Vec input = new Vec(in);
+
+		double[] t = {3.4};
+		Vec target = new Vec(t);
+
+		nn.predict(input);
+		nn.backProp(target);
+		nn.updateGradient(input);
+
+		System.out.println("activation 0:\n" + nn.layers.get(0).activation);
+		System.out.println("activation 1:\n" + nn.layers.get(1).activation);
+		System.out.println("activation 2:\n" + nn.layers.get(2).activation);
+
+		System.out.println(nn.gradient);
 	}
 
 	public static void main(String[] args) {
 
 		/// NOTE: l1 regularization pushes non-critical weights to 0.
-		timeseries();
-
+		//timeseries();
+		tsDebugSimple();
 	}
 }
