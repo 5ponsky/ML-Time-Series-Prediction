@@ -1,7 +1,11 @@
 import java.util.Random;
 
-
+/// WARNING:
+/// I've written this class with specific functionality for time series
 class LayerSine extends Layer {
+  boolean time_series = true;
+
+  Vec prevInput;
 
   int getNumberWeights() { return 0; }
 
@@ -12,7 +16,18 @@ class LayerSine extends Layer {
   // NOTE: this layer has no weights, so the weights vector is unused
   void activate(Vec weights, Vec x) {
     for(int i = 0; i < outputs; ++i) {
-      activation.set(i, Math.sin(x.get(i)));
+      prevInput = new Vec(x);
+
+      if(time_series) {
+        if(i == activation.size() - 1)
+          activation.set(i, x.get(i)); // Identity unit
+        else
+          activation.set(i, Math.sin(x.get(i)));
+
+      } else {
+        activation.set(i, Math.sin(x.get(i)));
+      }
+
     }
   }
 
@@ -26,8 +41,18 @@ class LayerSine extends Layer {
     blame.fill(0.0);
     blame.add(prevBlame);
 
+    double derivative;
     for(int i = 0; i < inputs; ++i) {
-      double derivative = prevBlame.get(i) * Math.cos(prevBlame.get(i));
+      if(time_series) {
+        if(i == activation.size() - 1)
+          derivative = prevBlame.get(i) * 1; // The identity unit
+        else
+          derivative = prevBlame.get(i) * Math.cos(prevInput.get(i));
+
+      } else {
+        derivative = prevBlame.get(i) * Math.cos(prevInput.get(i));
+      }
+
       nextBlame.set(i, derivative);
     }
 

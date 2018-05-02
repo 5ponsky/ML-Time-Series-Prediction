@@ -8,9 +8,9 @@ public class NeuralNet extends SupervisedLearner {
   private double learning_rate = 0.0175;
 
 
-  private int reg_mode = 1; // temporary place holder for regularization
-  private double lambda_1 = 0.003;
-  private double lambda_2 = 0.0003;
+  private int reg_mode = 2; // temporary place holder for regularization
+  private double lambda_1 = 0.008;
+  private double lambda_2 = 0.006;
 
   protected int trainingProgress;
 
