@@ -9,8 +9,8 @@ public class NeuralNet extends SupervisedLearner {
 
 
   private int reg_mode = 1; // temporary place holder for regularization
-  private double lambda_1 = 0.001;
-  private double lambda_2 = 0.0001;
+  private double lambda_1 = 0.003;
+  private double lambda_2 = 0.0003;
 
   protected int trainingProgress;
 
@@ -176,9 +176,9 @@ public class NeuralNet extends SupervisedLearner {
       double weight = weights.get(i);
 
       if(weight > 0.0) {
-        weights.set(i, weight - (weight * lambda_1 * learning_rate));
+        weights.set(i, weight - (lambda_1 * learning_rate));
       } else if(weight < 0.0) {
-        weights.set(i, weight + (weight * lambda_1 * learning_rate));
+        weights.set(i, weight + (lambda_1 * learning_rate));
       }
     }
   }
@@ -188,9 +188,9 @@ public class NeuralNet extends SupervisedLearner {
       double weight = weights.get(i);
 
       if(weight > 0.0) {
-        weights.set(i, weight - (weight * weight * lambda_2 * learning_rate));
+        weights.set(i, weight - (weight * lambda_2 * learning_rate));
       } else if(weight < 0.0) {
-        weights.set(i, weight + (weight * weight * lambda_2 * learning_rate));
+        weights.set(i, weight + (weight * lambda_2 * learning_rate));
       }
     }
   }
@@ -268,7 +268,7 @@ public class NeuralNet extends SupervisedLearner {
     for(int i = 0; i < target.size(); ++i) {
       for(int j = 0; j < weights.size(); ++j) {
         if(Math.abs(measured.row(i).get(j) - computed.row(i).get(j)) > 1e-5) {
-          //System.out.println("Mismatch at (i, j): (" + i + ", " + j + ")");
+
           double err = Math.abs(measured.row(i).get(j) - computed.row(i).get(j));
           throw new RuntimeException("dist(" + measured.row(i).get(j) + ", " + computed.row(i).get(j)
             + ") = " + err + "is too large!");

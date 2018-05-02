@@ -27,7 +27,7 @@ class LayerSine extends Layer {
     blame.add(prevBlame);
 
     for(int i = 0; i < inputs; ++i) {
-      double derivative = prevBlame.get(i) * Math.cos(activation.get(i));
+      double derivative = prevBlame.get(i) * Math.cos(prevBlame.get(i));
       nextBlame.set(i, derivative);
     }
 
