@@ -607,18 +607,24 @@ class Main
 		nn.layers.add(new LayerSine(5));
 		nn.layers.add(new LayerLinear(5, 1));
 
+		// double[] w = {
+		// 	3.1415926535898,3.1415926535898,1.5707963267949,1.5707963267949,
+		// 	0,6.2831853071796,12.566370614359,6.2831853071796,12.566370614359,0,
+		// 	0.01,0.01,0.01,0.01,0.01,0.01
+		// };
+
 		double[] w = {
-			3.1415926535898,3.1415926535898,1.5707963267949,1.5707963267949,
-			0,6.2831853071796,12.566370614359,6.2831853071796,12.566370614359,0,
-			0.01,0.01,0.01,0.01,0.01,0.01
+			3.1415926535898,3.1412587951824,1.5707963267949,1.5707963267949,0,6.2831853071796,
+			12.566370614359,6.2831853071796,12.566370614359,0,0.043385840734641,0.01,0.01,0.043385840734641,
+			0.043385840734641,0.11488471198587
 		};
 		nn.weights = new Vec(w);
 		nn.gradient = new Vec(nn.weights.size());
 
-		double[] in = {0};
+		double[] in = {0.00390625};
 		Vec input = new Vec(in);
 
-		double[] t = {3.4};
+		double[] t = {3.8};
 		Vec target = new Vec(t);
 
 		nn.predict(input);
@@ -635,7 +641,7 @@ class Main
 	public static void main(String[] args) {
 
 		/// NOTE: l1 regularization pushes non-critical weights to 0.
-		//timeseries();
-		tsDebugSimple();
+		timeseries();
+		//tsDebugSimple();
 	}
 }

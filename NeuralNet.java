@@ -6,8 +6,11 @@ public class NeuralNet extends SupervisedLearner {
   // It allows for decreasing learning rates
   private double learning_scale = 1.0;
   private double learning_rate = 0.0175;
-  private double lambda_1 = 0.0001;
-  private double lambda_2 = 0.001;
+
+
+  private int reg_mode = 1; // temporary place holder for regularization
+  private double lambda_1 = 0.001;
+  private double lambda_2 = 0.0001;
 
   protected int trainingProgress;
 
@@ -119,9 +122,6 @@ public class NeuralNet extends SupervisedLearner {
     // How many patterns/mini-batches should we train on before testing?
     final int cutoff = features.rows();
 
-    // temporary place holder for regularization
-    int reg_mode = 2;
-
     Vec in, target;
     // We want to check if we have iterated over all rows
     for(; trainingProgress < features.rows(); ++trainingProgress) {
@@ -140,7 +140,7 @@ public class NeuralNet extends SupervisedLearner {
         } else if(reg_mode == 2) { // L2 regularization
           l2_regularization();
         } else if(reg_mode == 3) { // LP regularization
-
+          lp_regularization(3);
         }
         refineWeights(learning_rate * learning_scale);
 
@@ -188,9 +188,9 @@ public class NeuralNet extends SupervisedLearner {
       double weight = weights.get(i);
 
       if(weight > 0.0) {
-        weights.set(i, weight - (weight * weight * lambda_1 * learning_rate));
+        weights.set(i, weight - (weight * weight * lambda_2 * learning_rate));
       } else if(weight < 0.0) {
-        weights.set(i, weight + (weight * weight * lambda_1 * learning_rate));
+        weights.set(i, weight + (weight * weight * lambda_2 * learning_rate));
       }
     }
   }
